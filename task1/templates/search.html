@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+</head>
+<body>
+    <h1>Search Results</h1>
+    
+    {% if isFound %}
+        <h2>Student Found</h2>
+        <p>ID: {{ targetStudent.id }}</p>
+        <p>Name: {{ targetStudent.name }}</p>
+    {% else %}
+        <h2>Student Not Found</h2>
+        <p>No student with the specified ID was found.</p>
+    {% endif %}
+    
+</body>
+</html>
