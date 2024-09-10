@@ -1,24 +1,26 @@
+from flask import Flask, render_template, redirect, url_for, flash, request, session
 from flask_sqlalchemy import SQLAlchemy
-from flask import Flask
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-# Step-1
-app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///project.db"
-db = SQLAlchemy()
-db.init_app(app)
-app.secret_key = '123'
 
+# Step-1: Configure the app and initialize the database
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///project.db"
+app.config['SECRET_KEY'] = '123'  # Needed for session management and flash messages
+db = SQLAlchemy(app)
 
 # Step-2: Define User Schema
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
-    books = db.relationship('Book', backref='owner', lazy="select") # backref='owner': could be any attribute not just 'owner'
-    # bacref: how to get data from of books of this user or vise verse: (will be understood in below code)
-    # lazy: how tables will be get at database background (default is select) check it's types (https://docs.sqlalchemy.org/en/14/orm/loading_relationships.html)
-    
-    def __init__(self, username):
+    password = db.Column(db.String(200), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)  # Additional attribute to differentiate admin users
+    books = db.relationship('Book', backref='owner', lazy="select")
+
+    def __init__(self, username, password, is_admin=False):
         self.username = username
+        self.password = generate_password_hash(password)
+        self.is_admin = is_admin
 
 # Define Book Schema
 class Book(db.Model):
@@ -30,43 +32,99 @@ class Book(db.Model):
         self.title = title
         self.user_id = user_id
 
+# User Registration
+@app.route("/register", methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        # Check if user exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists. Try a different one.', 'danger')
+            return redirect(url_for('register'))
+        
+        new_user = User(username=username, password=password)
+        db.session.add(new_user)
+        db.session.commit()
+        flash('Registered successfully. Please log in.', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html')
 
-@app.route("/")
-def run_all():
-    ## Step-3
-    # Create a new user
-    new_user = User(username='Ahmed Ayman')
-    db.session.add(new_user)
-    db.session.commit()
-    print("Added User")
+# User Login
+@app.route("/login", methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
 
-    # Add a book
-    new_book = Book(title='Flask Book') # could specfiy also user_id=5 or owner=new_user
-    # new_book = Book(title='Flask Book', user_id=new_user.id) 
+        if user and check_password_hash(user.password, password):
+            session['user_id'] = user.id
+            session['is_admin'] = user.is_admin
+            flash('Logged in successfully.', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid username or password.', 'danger')
+    return render_template('login.html')
+
+# User Dashboard
+@app.route("/dashboard")
+def dashboard():
+    if 'user_id' not in session:
+        flash('Please log in to access your dashboard.', 'danger')
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    books = user.books if user else []
+    return render_template('dashboard.html', user=user, books=books)
+
+# Add a Book
+@app.route("/add_book", methods=['POST'])
+def add_book():
+    if 'user_id' not in session:
+        flash('Please log in to add a book.', 'danger')
+        return redirect(url_for('login'))
+
+    title = request.form['title']
+    user_id = session['user_id']
+    new_book = Book(title=title, user_id=user_id)
     db.session.add(new_book)
     db.session.commit()
-    print("Added Book")
+    flash('Book added successfully!', 'success')
+    return redirect(url_for('dashboard'))
 
+# Remove a Book
+@app.route("/remove_book/<int:book_id>")
+def remove_book(book_id):
+    if 'user_id' not in session:
+        flash('Please log in to remove a book.', 'danger')
+        return redirect(url_for('login'))
 
-    # [Add a book for user]
-    user = User.query.get(new_user.id)
-    book = Book.query.get(new_book.id)
-    if user and book:
-        book.user_id = user.id # add fk then submit
+    book = Book.query.get(book_id)
+    if book and book.owner.id == session['user_id']:
+        db.session.delete(book)
         db.session.commit()
+        flash('Book removed successfully!', 'success')
+    else:
+        flash('You do not have permission to remove this book.', 'danger')
+    return redirect(url_for('dashboard'))
 
-    # what is backref? (to get books of a user without multible queries and vise-verse)
-    user = User.query.filter_by(username='Ahmed Ayman2').first() # when getting user I can get his books also vise-verse(Book.owser.username)
-    books = user.books # don't worry it's not error, it gets books of user
+# Admin Dashboard
+@app.route("/admin")
+def admin_dashboard():
+    if 'is_admin' not in session or not session['is_admin']:
+        flash('Access denied. Admins only.', 'danger')
+        return redirect(url_for('login'))
 
-    for book in books:
-        print(book.title)
-        print(book.owner.username) # and username of a book
-    
-    return "Congratulations!!"
+    users = User.query.all()
+    books = Book.query.all()
+    return render_template('admin_dashboard.html', users=users, books=books)
 
-with app.app_context():
+# Home route to initialize the database
+@app.route("/")
+def home():
     db.create_all()
-    
+    return redirect(url_for('register'))
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
