@@ -120,6 +120,14 @@ def admin_dashboard():
     books = Book.query.all()
     return render_template('admin_dashboard.html', users=users, books=books)
 
+
+@app.route("/logout")
+def logout():
+    session.pop('user_id', None)
+    session.pop('is_admin', None)
+    flash('You have been logged out.', 'success')
+    return redirect(url_for('login'))
+
 # Home route to initialize the database
 @app.route("/")
 def home():
