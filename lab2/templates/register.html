@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+
 {% block content %}
 <h2>Register</h2>
 <form action="{{ url_for('register') }}" method="POST">
@@ -9,6 +10,11 @@
     <div class="form-group">
         <label for="password">Password</label>
         <input type="password" class="form-control" id="password" name="password" required>
+    </div>
+    <!-- New Checkbox for Admin Registration -->
+    <div class="form-group form-check">
+        <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin">
+        <label class="form-check-label" for="is_admin">Register as Admin</label>
     </div>
     <button type="submit" class="btn btn-primary">Register</button>
 </form>

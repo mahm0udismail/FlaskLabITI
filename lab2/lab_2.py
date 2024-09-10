@@ -32,22 +32,27 @@ class Book(db.Model):
         self.title = title
         self.user_id = user_id
 
-# User Registration
+# User Registration Route
 @app.route("/register", methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        # Check if user exists
+        is_admin = 'is_admin' in request.form  # Check if checkbox is checked
+        
+        # Check if user already exists
         if User.query.filter_by(username=username).first():
             flash('Username already exists. Try a different one.', 'danger')
             return redirect(url_for('register'))
         
-        new_user = User(username=username, password=password)
+        # Create a new user with admin rights if checkbox is checked
+        new_user = User(username=username, password=password, is_admin=is_admin)
         db.session.add(new_user)
         db.session.commit()
+        
         flash('Registered successfully. Please log in.', 'success')
         return redirect(url_for('login'))
+    
     return render_template('register.html')
 
 # User Login
@@ -60,12 +65,13 @@ def login():
 
         if user and check_password_hash(user.password, password):
             session['user_id'] = user.id
-            session['is_admin'] = user.is_admin
+            session['is_admin'] = user.is_admin  # This sets is_admin in session
             flash('Logged in successfully.', 'success')
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password.', 'danger')
     return render_template('login.html')
+
 
 # User Dashboard
 @app.route("/dashboard")
