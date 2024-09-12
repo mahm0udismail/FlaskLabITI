@@ -17,8 +17,10 @@ class User(db.Model):
 class Book(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
+    image = db.Column(db.LargeBinary, nullable=True)  # New column to store image data as BLOB
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
-    def __init__(self, title, user_id=None):
+    def __init__(self, title, image=None, user_id=None):
         self.title = title
+        self.image = image  # Store the image data
         self.user_id = user_id

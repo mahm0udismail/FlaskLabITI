@@ -1,8 +1,8 @@
-from flask import render_template, redirect, url_for, flash, request, session
+from flask import render_template, redirect, url_for, flash, request, session, send_file
 from werkzeug.security import check_password_hash
 from app import app, db
 from app.models import User, Book
-
+import io
 
 @app.route("/register", methods=['GET', 'POST'])
 def register():
@@ -24,7 +24,6 @@ def register():
     
     return render_template('register.html')
 
-
 @app.route("/login", methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -41,7 +40,6 @@ def login():
             flash('Invalid username or password.', 'danger')
     return render_template('login.html')
 
-
 @app.route("/dashboard")
 def dashboard():
     if 'user_id' not in session:
@@ -52,7 +50,6 @@ def dashboard():
     books = user.books if user else []
     return render_template('dashboard.html', user=user, books=books)
 
-
 @app.route("/add_book", methods=['POST'])
 def add_book():
     if 'user_id' not in session:
@@ -61,12 +58,14 @@ def add_book():
 
     title = request.form['title']
     user_id = session['user_id']
-    new_book = Book(title=title, user_id=user_id)
+    image = request.files.get('image')
+    image_data = image.read() if image else None
+
+    new_book = Book(title=title, image=image_data, user_id=user_id)
     db.session.add(new_book)
     db.session.commit()
     flash('Book added successfully!', 'success')
     return redirect(url_for('dashboard'))
-
 
 @app.route("/remove_book/<int:book_id>")
 def remove_book(book_id):
@@ -83,7 +82,6 @@ def remove_book(book_id):
         flash('You do not have permission to remove this book.', 'danger')
     return redirect(url_for('dashboard'))
 
-
 @app.route("/admin")
 def admin_dashboard():
     if 'is_admin' not in session or not session['is_admin']:
@@ -94,7 +92,6 @@ def admin_dashboard():
     books = Book.query.all()
     return render_template('admin_dashboard.html', users=users, books=books)
 
-
 @app.route("/logout")
 def logout():
     session.pop('user_id', None)
@@ -102,6 +99,13 @@ def logout():
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
 
+@app.route("/book_image/<int:book_id>")
+def book_image(book_id):
+    book = Book.query.get_or_404(book_id)
+    if book.image:
+        return send_file(io.BytesIO(book.image), mimetype='image/jpeg')  # Adjust the MIME type if necessary
+    else:
+        return '', 404
 
 @app.route("/")
 def home():

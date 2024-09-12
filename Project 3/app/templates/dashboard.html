@@ -16,19 +16,27 @@
     {% endif %}
 
     <h2 class="mt-4">Your Books</h2>
+
     <ul class="list-group mb-4">
         {% for book in books %}
             <li class="list-group-item d-flex justify-content-between align-items-center">
                 {{ book.title }}
+                {% if book.image %}
+                    <img src="{{ url_for('book_image', book_id=book.id) }}" alt="{{ book.title }}" width="50" class="mr-3">
+                {% endif %}
                 <a href="{{ url_for('remove_book', book_id=book.id) }}" class="badge badge-danger badge-pill">Remove</a>
             </li>
         {% endfor %}
     </ul>
+    
 
-    <!-- Form to add a new book -->
-    <form action="{{ url_for('add_book') }}" method="post" class="form-inline mb-4">
+    <!-- Form to add a new book with image upload -->
+    <form action="{{ url_for('add_book') }}" method="post" class="form-inline mb-4" enctype="multipart/form-data">
         <div class="form-group mr-2">
             <input type="text" name="title" class="form-control" placeholder="Enter book title" required>
+        </div>
+        <div class="form-group mr-2">
+            <input type="file" name="image" class="form-control-file" required>
         </div>
         <button type="submit" class="btn btn-success">Add Book</button>
     </form>
